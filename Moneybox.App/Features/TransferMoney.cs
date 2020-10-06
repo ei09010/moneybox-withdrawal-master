@@ -1,4 +1,5 @@
 ﻿using Moneybox.App.DataAccess;
+using Moneybox.App.Domain;
 using Moneybox.App.Domain.Services;
 using System;
 
@@ -9,7 +10,9 @@ namespace Moneybox.App.Features
         private IAccountRepository accountRepository;
         private INotificationService notificationService;
 
-        public TransferMoney(IAccountRepository accountRepository, INotificationService notificationService)
+        public TransferMoney(
+            IAccountRepository accountRepository,
+            INotificationService notificationService)
         {
             this.accountRepository = accountRepository;
             this.notificationService = notificationService;
@@ -20,45 +23,19 @@ namespace Moneybox.App.Features
             var from = this.accountRepository.GetAccountById(fromAccountId);
             var to = this.accountRepository.GetAccountById(toAccountId);
 
-            var fromBalance = from.Balance - amount;
-
-            // calculate balance
-
-            // validate balance 
-
-
-            if (fromBalance < 0m)
-            {
-                throw new InvalidOperationException("Insufficient funds to make transfer");
-            }
-
-            if (fromBalance < 500m)
-            {
-                this.notificationService.NotifyFundsLow(from.User.Email);
-            }
-
-            // calculate amount
-
-            // validate amount
-
-            var paidIn = to.PaidIn + amount;
-            if (paidIn > Account.PayInLimit)
-            {
-                throw new InvalidOperationException("Account pay in limit reached");
-            }
-
-            if (Account.PayInLimit - paidIn < 500m)
-            {
-                this.notificationService.NotifyApproachingPayInLimit(to.User.Email);
-            }
-
+            // validating account amounts
             
+            from.ValidateBalance(this.notificationService, amount);
 
-            from.Balance = from.Balance - amount;
-            from.Withdrawn = from.Withdrawn - amount;
+            to.ValidatePaidIn(this.notificationService, amount);
 
-            to.Balance = to.Balance + amount;
-            to.PaidIn = to.PaidIn + amount;
+
+            // updating account balances, withdrawn and paindIn properties
+
+            from.UpdateBalanceAndWithdrawn(amount);
+
+            to.UpdateBalanceAndPaidIn(amount);
+
 
             this.accountRepository.Update(from);
             this.accountRepository.Update(to);
